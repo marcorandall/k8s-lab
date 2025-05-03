@@ -120,48 +120,6 @@ Visit: http://localhost:<NodePort> (e.g., 30000)
 
 ---
 
-## 📺 Step 4: Optional Dashboard (K9s)
-
-### macOS:
-```bash
-brew install k9s
-```
-
-### Linux:
-```bash
-sudo snap install k9s
-```
-
-Or download from: https://github.com/derailed/k9s/releases
-
-Run:
-```bash
-k9s
-```
-
----
-
-## 🧹 Step 5: Clean Up
-```bash
-kind delete cluster --name k8s-lab
-```
-
----
-
-## 📝 Summary Table
-
-| Step | Action                                | Tool        |
-|------|----------------------------------------|-------------|
-| 1    | Install Docker                         | docker      |
-| 2    | Install kubectl                        | kubectl     |
-| 3    | Install Kind                           | kind        |
-| 4    | Create a cluster                       | kind        |
-| 5    | Deploy NGINX app                       | kubectl     |
-| 6    | View with browser or K9s               | NodePort    |
-| 7    | Delete cluster when done               | kind        |
-
----
-
 # 📺 Part 4: Optional Kubernetes Dashboards
 
 ## 🧮 Option 1: K9s (Terminal-Based Dashboard)
@@ -217,3 +175,92 @@ http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kube
 |----------------------|-------------|----------------------|---------------------|
 | K9s (terminal)       | ✅ Yes      | ⚠️ With Git Bash     | ❌ Not directly     |
 | Web Dashboard        | ✅ Yes      | ✅ Yes               | ✅ Yes (if kubectl works) |
+
+---
+
+## 🧪 BSides Training Kubernetes Lab Example
+
+This section provides a practical hands-on lab deployment with Kind, NGINX, and NodePort access.
+
+<details>
+<summary><strong>1️⃣ Create the Kind Cluster</strong></summary>
+
+```bash
+kind create cluster --name bsides-training --config - <<EOF 
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+  - role: worker
+  - role: worker
+EOF
+```
+
+</details>
+
+<details>
+<summary><strong>2️⃣ Deploy NGINX Web Server</strong></summary>
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+EOF
+```
+
+</details>
+
+<details>
+<summary><strong>3️⃣ Expose with NodePort Service</strong></summary>
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+EOF
+```
+
+</details>
+
+<details>
+<summary><strong>4️⃣ Access NGINX</strong></summary>
+
+Visit in your browser:
+```
+http://localhost:30080
+```
+
+You should see the NGINX welcome page.
+</details>
