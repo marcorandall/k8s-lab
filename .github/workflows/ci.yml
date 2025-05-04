@@ -1,0 +1,41 @@
+
+name: Kubernetes Lab CI
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  validate:
+    name: Validate Terraform and Ansible
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_wrapper: false
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+      working-directory: terraform
+
+    - name: Terraform Validate
+      run: terraform validate
+      working-directory: terraform
+
+    - name: Install Ansible
+      run: |
+        sudo apt update
+        sudo apt install -y ansible
+        ansible-galaxy collection install kubernetes.core
+
+    - name: Install Ansible Lint
+      run: pip install ansible-lint
+
+    - name: Lint Ansible Playbook
+      run: ansible-lint playbook.yml
+      working-directory: ansible
