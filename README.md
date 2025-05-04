@@ -1,157 +1,188 @@
-# Kubernetes Lab Guide
 
+# 🧪 Kubernetes Lab: Local Cluster + App Deployments
+
+This guide walks you through setting up a Kubernetes lab using Kind, deploying apps (NGINX and Flask), validating them, and optionally managing resources with Terraform and Ansible.
 
 ---
 
-## 🧹 Cleaning Up and Rebuilding the Lab
+## ✅ Prerequisites
 
-### ✅ Verify Cleanup
-After running:
+- Docker installed
+- Kind installed (`kind`)
+- kubectl installed
+- Optional: Terraform, Ansible, and Make
+
+---
+
+## 🌱 Step 1: Create the Cluster
+
 ```bash
-make clean
+kind create cluster --name bsides-training --config - <<EOF 
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+  - role: worker
+  - role: worker
+EOF
 ```
 
-Run:
+### ✅ Verify Cluster
 ```bash
 kubectl get nodes
 ```
-
-❌ You should see an error like "No resources found" — meaning the lab was successfully destroyed.
-
-
-To **destroy** the Kubernetes lab created with Kind and start fresh:
-
-### 🗑️ Delete the Kind Cluster
-```bash
-kind delete cluster --name bsides-training
-```
-
-This will:
-- Stop and remove the cluster's Docker containers
-- Clean up kubeconfig context entries
-- Free up host ports (e.g., 30080)
+You should see 3 nodes (1 control-plane, 2 workers).
 
 ---
 
-### 🧼 Optional: Clean Docker Resources
+## 🌐 Step 2: Deploy NGINX Web Server
+
 ```bash
-docker system prune -f
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+EOF
 ```
 
-This removes unused containers, images, networks, and volumes.
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+EOF
+```
+
+### ✅ Verify NGINX
+```bash
+kubectl get pods -l app=nginx
+kubectl get svc nginx-service
+curl http://localhost:30080
+```
 
 ---
 
-### 🔁 Rebuild the Lab
-
-You can re-deploy everything with:
-
-```bash
-bash scripts/deploy_bsides_lab.sh
-```
-
-Or if using the Makefile:
-
-```bash
-make deploy
-```
-
-You now have a repeatable lab cycle: **deploy → test → destroy → rebuild**.
-
-
----
-
-## 🗺️ Visual: Kubernetes Lab Setup Flow
-
-This diagram shows the high-level steps involved in setting up your local Kubernetes lab.
-
-![Kubernetes Lab Setup Flowchart](./A_flowchart_in_the_digital_2D_illustration_visuall.png)
-
----
-
-## 🧪 Optional: Add a Functional Container (Flask App)
-
-### ✅ Verify Flask App
-```bash
-kubectl get pods -l app=flask-app
-kubectl get svc flask-service
-```
-✅ Flask pod should be Running and service should be exposed on NodePort 30081
-
-```bash
-curl http://localhost:30081
-```
-✅ You should see a "Hello World" response.
-
-
-You can deploy a simple Python-based Flask application to test app functionality inside your Kind cluster.
-
-### 📝 Manifest: `manifests/flask-app.yaml`
-
-This manifest deploys a prebuilt Flask container and exposes it on port 30081.
-
-### ▶️ Deploy the App
+## 🧪 Step 3: Deploy Flask App
 
 ```bash
 make flask
 ```
 
-Then open:
-
-```
-http://localhost:30081
-```
-
-You should see a basic Flask web app served from your cluster.
-
----
-
-## ✅ Lab Verification Steps
-
-Use these steps to confirm your Kubernetes lab is set up correctly.
-
-### 🔧 1. Verify Cluster Is Running
-```bash
-kubectl get nodes
-```
-✅ Expected: 3 nodes (1 control-plane, 2 workers)
-
----
-
-### 🌐 2. Verify NGINX Deployment
-```bash
-kubectl get pods -l app=nginx
-kubectl get svc nginx-service
-```
-✅ Pod should be `Running`, and service should expose NodePort `30080`
-
-```bash
-curl http://localhost:30080
-```
-✅ Should return NGINX welcome HTML
-
----
-
-### 🧪 3. Verify Flask App
+### ✅ Verify Flask App
 ```bash
 kubectl get pods -l app=flask-app
 kubectl get svc flask-service
-```
-✅ Pod should be `Running`, and service on NodePort `30081`
-
-```bash
 curl http://localhost:30081
 ```
-✅ Should return Flask Hello World response
 
 ---
 
-### 🛠 4. Verify Clean/Delete
+## 🧹 Step 4: Clean and Rebuild the Lab
+
+To clean:
 ```bash
 make clean
 ```
-Then:
+
+To rebuild:
+```bash
+make rebuild
+```
+
+### ✅ Verify Cleanup
 ```bash
 kubectl get nodes
 ```
-❌ Should return error or no cluster found
+Should return an error or “no resources found.”
+
+---
+
+## 🧩 Optional: Manage Resources with Terraform
+
+```hcl
+provider "kubernetes" {
+  config_path    = "~/.kube/config"
+  config_context = "kind-bsides-training"
+}
+
+resource "kubernetes_namespace" "demo" {
+  metadata {
+    name = "demo"
+  }
+}
+```
+
+```bash
+cd terraform
+terraform init
+terraform apply
+```
+
+---
+
+## 🧩 Optional: Manage Resources with Ansible
+
+```yaml
+- name: Deploy to Kind cluster
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Create namespace
+      kubernetes.core.k8s:
+        kubeconfig: ~/.kube/config
+        context: kind-bsides-training
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: demo
+```
+
+```bash
+cd ansible
+ansible-playbook playbook.yml
+```
+
+---
+
+## 🤖 GitHub Actions CI (Optional)
+
+Located in `.github/workflows/ci.yml`, this action:
+- Validates Terraform (`fmt`, `validate`)
+- Installs and lints Ansible
+
+---
+
+## 🗺️ Visual: Kubernetes Lab Flow
+
+![Kubernetes Lab Setup Flowchart](./A_flowchart_in_the_digital_2D_illustration_visuall.png)
