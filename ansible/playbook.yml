@@ -1,0 +1,14 @@
+
+- name: Deploy to Kind cluster
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Create namespace
+      kubernetes.core.k8s:
+        kubeconfig: ~/.kube/config
+        context: kind-bsides-training
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: demo
