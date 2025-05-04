@@ -1,3 +1,75 @@
+# 🧪 Kubernetes Lab Setup for Beginners (Kind-based)
+
+This guide will help you set up a Kubernetes lab on your **laptop** using **Kind** (Kubernetes in Docker). It includes instructions for **Windows (with WSL2)**, **macOS**, and **Linux** systems.
+
+---
+
+## ✅ System Requirements
+
+- OS:
+  - Windows 10 or 11 with WSL2
+  - macOS
+  - Linux (Ubuntu/Debian recommended)
+- RAM: 8GB minimum
+- CPU: 4+ cores
+- Internet access
+
+---
+
+## 🐳 Docker + Tools Installation
+
+### For Linux/macOS:
+
+```bash
+sudo apt update
+sudo apt install docker.io -y
+sudo systemctl enable docker --now
+sudo usermod -aG docker $USER
+```
+
+```bash
+curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/$(uname | tr '[:upper:]' '[:lower:]')/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
+```
+
+```bash
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-$(uname)-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+```
+
+---
+
+### For Windows (WSL2 with Ubuntu):
+
+1. Install WSL2:
+```powershell
+wsl --install
+```
+
+2. Install Docker Desktop and enable WSL2 integration.
+
+3. In Ubuntu shell:
+```bash
+sudo apt update && sudo apt install -y curl docker.io
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+4. Install kubectl:
+```bash
+curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+```
+
+5. Install Kind:
+```bash
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64
+chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind
+```
+
+# 🧪 Kubernetes Lab Setup for Beginners (Kind-based)
 
 # 🧪 Kubernetes Lab: Local Cluster + App Deployments
 
@@ -172,14 +244,6 @@ terraform apply
 cd ansible
 ansible-playbook playbook.yml
 ```
-
----
-
-## 🤖 GitHub Actions CI (Optional)
-
-Located in `.github/workflows/ci.yml`, this action:
-- Validates Terraform (`fmt`, `validate`)
-- Installs and lints Ansible
 
 ---
 
